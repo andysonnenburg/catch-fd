@@ -1,8 +1,8 @@
 name:                catch-fd
 version:             0.1.0.0
 cabal-version:       >= 1.6
--- synopsis:         
--- description:      
+synopsis:            MonadThrow and MonadCatch, using functional dependencies
+description:         MonadThrow and MonadCatch, using functional dependencies
 license:             BSD3
 license-file:        LICENSE
 author:              Andy Sonnenburg
