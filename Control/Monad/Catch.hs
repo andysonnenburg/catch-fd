@@ -1,13 +1,15 @@
-{-# LANGUAGE CPP #-}
-#ifndef __HADDOCK__
-{-# LANGUAGE ConstraintKinds #-}
-#endif
 {-# LANGUAGE
-    DefaultSignatures
+    ConstraintKinds
+  , DefaultSignatures
   , FlexibleInstances
   , FunctionalDependencies
   , MultiParamTypeClasses
   , UndecidableInstances #-}
+-- |
+-- License: BSD-style (see the file LICENSE)
+-- Maintainer: Andy Sonnenburg <andy22286@gmail.com>
+-- Stability: experimental
+-- Portability: non-portable
 module Control.Monad.Catch
        ( MonadThrow (..)
        , MonadCatch (..)
