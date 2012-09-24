@@ -1,5 +1,5 @@
 name:                catch-fd
-version:             0.1.0.0
+version:             0.1.0.1
 cabal-version:       >= 1.6
 synopsis:            MonadThrow and MonadCatch, using functional dependencies
 description:         MonadThrow and MonadCatch, using functional dependencies
