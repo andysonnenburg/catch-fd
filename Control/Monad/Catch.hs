@@ -1,6 +1,9 @@
+{-# LANGUAGE CPP #-}
+#ifndef __HADDOCK__
+{-# LANGUAGE ConstraintKinds #-}
+#endif
 {-# LANGUAGE
-    ConstraintKinds
-  , DefaultSignatures
+    DefaultSignatures
   , FlexibleInstances
   , FunctionalDependencies
   , MultiParamTypeClasses
@@ -14,21 +17,26 @@ module Control.Monad.Catch
        , WrappedMonadCatch (..)
        ) where
 
-import Control.Exception (IOException)
-import Control.Monad.Error hiding (MonadError)
+import Control.Exception (IOException, ioError)
+import qualified Control.Exception as Exception
+import Control.Monad
 import qualified Control.Monad.Error.Class as Error
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Error
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.List
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Reader
-import qualified Control.Monad.Trans.RWS.Lazy as Lazy
-import qualified Control.Monad.Trans.RWS.Strict as Strict
-import qualified Control.Monad.Trans.State.Lazy as Lazy
-import qualified Control.Monad.Trans.State.Strict as Strict
-import qualified Control.Monad.Trans.Writer.Lazy as Lazy
-import qualified Control.Monad.Trans.Writer.Strict as Strict
+import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
+import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
+import qualified Control.Monad.Trans.State.Lazy as LazyState
+import qualified Control.Monad.Trans.State.Strict as StrictState
+import qualified Control.Monad.Trans.Writer.Lazy as LazyWriter
+import qualified Control.Monad.Trans.Writer.Strict as StrictWriter
 
 import Data.Monoid
+
+import Prelude (Either (..), IO, ($), (.), either)
 
 class Monad m => MonadThrow e m | m -> e where
   throw :: e -> m a
@@ -42,8 +50,19 @@ class ( MonadThrow e m
 
 type MonadError e m = (MonadThrow e m, MonadCatch e m m)
 
-mapE :: (MonadThrow e' n, MonadCatch e m n) => (e -> e') -> m a -> n a
+mapE :: (MonadCatch e m n, MonadThrow e' n) => (e -> e') -> m a -> n a
 mapE f m = m `catch` (throw . f)
+
+instance MonadThrow IOException IO where
+  throw = ioError
+instance MonadCatch IOException IO IO where
+  catch = Exception.catch
+
+instance MonadThrow e (Either e) where
+  throw = Left
+instance MonadCatch e (Either e) (Either e') where
+  Left e `catch` h = h e
+  Right a `catch` _h = Right a
 
 instance (Error e, Monad m) => MonadThrow e (ErrorT e m) where
   throw = throwError
@@ -67,57 +86,48 @@ instance MonadCatch e m n => MonadCatch e (MaybeT m) (MaybeT n) where
 
 instance MonadThrow e m => MonadThrow e (ReaderT r m)
 instance MonadCatch e m n => MonadCatch e (ReaderT r m) (ReaderT r n) where
-  m `catch` h = ReaderT $ \ r -> runReaderT m r `catch` \ e -> runReaderT (h e) r
-
-instance (Monoid w, MonadThrow e m) => MonadThrow e (Lazy.RWST r w s m)
-instance (Monoid w, MonadCatch e m n) =>
-         MonadCatch e (Lazy.RWST r w s m) (Lazy.RWST r w s n) where
   m `catch` h =
-    Lazy.RWST $ \ r s -> Lazy.runRWST m r s `catch` \ e -> Lazy.runRWST (h e) r s
+    ReaderT $ \ r -> runReaderT m r `catch` \ e -> runReaderT (h e) r
 
-instance (Monoid w, MonadThrow e m) => MonadThrow e (Strict.RWST r w s m)
+instance (Monoid w, MonadThrow e m) => MonadThrow e (LazyRWS.RWST r w s m)
 instance (Monoid w, MonadCatch e m n) =>
-         MonadCatch e (Strict.RWST r w s m) (Strict.RWST r w s n) where
-  m `catch` h = Strict.RWST $ \ r s ->
-    Strict.runRWST m r s `catch` \ e -> Strict.runRWST (h e) r s
+         MonadCatch e (LazyRWS.RWST r w s m) (LazyRWS.RWST r w s n) where
+  m `catch` h = LazyRWS.RWST $ \ r s ->
+    LazyRWS.runRWST m r s `catch` \ e -> LazyRWS.runRWST (h e) r s
 
-instance MonadThrow e m => MonadThrow e (Lazy.StateT s m)
+instance (Monoid w, MonadThrow e m) => MonadThrow e (StrictRWS.RWST r w s m)
+instance (Monoid w, MonadCatch e m n) =>
+         MonadCatch e (StrictRWS.RWST r w s m) (StrictRWS.RWST r w s n) where
+  m `catch` h = StrictRWS.RWST $ \ r s ->
+    StrictRWS.runRWST m r s `catch` \ e -> StrictRWS.runRWST (h e) r s
+
+instance MonadThrow e m => MonadThrow e (LazyState.StateT s m)
 instance MonadCatch e m n =>
-         MonadCatch e (Lazy.StateT s m) (Lazy.StateT s n) where
-  m `catch` h = Lazy.StateT $ \ s ->
-    Lazy.runStateT m s `catch` \ e -> Lazy.runStateT (h e) s
+         MonadCatch e (LazyState.StateT s m) (LazyState.StateT s n) where
+  m `catch` h = LazyState.StateT $ \ s ->
+    LazyState.runStateT m s `catch` \ e -> LazyState.runStateT (h e) s
 
-instance MonadThrow e m => MonadThrow e (Strict.StateT s m)
+instance MonadThrow e m => MonadThrow e (StrictState.StateT s m)
 instance MonadCatch e m n =>
-         MonadCatch e (Strict.StateT s m) (Strict.StateT s n) where
-  m `catch` h = Strict.StateT $ \ s ->
-    Strict.runStateT m s `catch` \ e -> Strict.runStateT (h e) s
+         MonadCatch e (StrictState.StateT s m) (StrictState.StateT s n) where
+  m `catch` h = StrictState.StateT $ \ s ->
+    StrictState.runStateT m s `catch` \ e -> StrictState.runStateT (h e) s
 
-instance (Monoid w, MonadThrow e m) => MonadThrow e (Lazy.WriterT w m)
+instance (Monoid w, MonadThrow e m) => MonadThrow e (LazyWriter.WriterT w m)
 instance ( Monoid w
          , MonadCatch e m n
-         ) => MonadCatch e (Lazy.WriterT w m) (Lazy.WriterT w n) where
+         ) => MonadCatch e (LazyWriter.WriterT w m) (LazyWriter.WriterT w n) where
   m `catch` h =
-    Lazy.WriterT $ Lazy.runWriterT m `catch` \ e -> Lazy.runWriterT (h e)
+    LazyWriter.WriterT $
+    LazyWriter.runWriterT m `catch` \ e -> LazyWriter.runWriterT (h e)
 
+instance (Monoid w, MonadThrow e m) => MonadThrow e (StrictWriter.WriterT w m)
 instance ( Monoid w
          , MonadCatch e m n
-         ) => MonadCatch e (Strict.WriterT w m) (Strict.WriterT w n) where
+         ) => MonadCatch e (StrictWriter.WriterT w m) (StrictWriter.WriterT w n) where
   m `catch` h =
-    Strict.WriterT $ Strict.runWriterT m `catch` \ e -> Strict.runWriterT (h e)
-
-instance (Monoid w, MonadThrow e m) => MonadThrow e (Strict.WriterT w m)
-
-instance MonadThrow e (Either e) where
-  throw = Left
-instance MonadCatch e (Either e) (Either e') where
-  Left e `catch` h = h e
-  Right a `catch` _h = Right a
-
-instance MonadThrow IOException IO where
-  throw = throwError
-instance MonadCatch IOException IO IO where
-  catch = catchError
+    StrictWriter.WriterT $
+    StrictWriter.runWriterT m `catch` \ e -> StrictWriter.runWriterT (h e)
 
 newtype WrappedMonadError m a =
   WrapMonadError { unwrapMonadError :: m a
@@ -128,11 +138,12 @@ instance Monad m => Monad (WrappedMonadError m) where
   m >>= f = WrapMonadError $ unwrapMonadError m >>= unwrapMonadError . f
 
 instance Error.MonadError e m => MonadThrow e (WrappedMonadError m) where
-  throw = WrapMonadError . throwError
+  throw = WrapMonadError . Error.throwError
 instance Error.MonadError e m =>
          MonadCatch e (WrappedMonadError m) (WrappedMonadError m) where
   m `catch` h =
-    WrapMonadError $ unwrapMonadError m `catchError` (unwrapMonadError . h)
+    WrapMonadError $
+    unwrapMonadError m `Error.catchError` (unwrapMonadError . h)
 
 newtype WrappedMonadCatch m a =
   WrapMonadCatch { unwrapMonadCatch :: m a

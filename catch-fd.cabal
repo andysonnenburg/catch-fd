@@ -19,10 +19,4 @@ source-repository head
 library
   exposed-modules: Control.Monad.Catch 
   build-depends: base < 6, mtl == 2.1.*, transformers == 0.3.*
-  extensions:
-    ConstraintKinds
-    FlexibleInstances
-    FunctionalDependencies
-    MultiParamTypeClasses
-    UndecidableInstances
   ghc-options: -Wall
