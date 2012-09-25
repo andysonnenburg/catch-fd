@@ -66,8 +66,7 @@ import Data.Monoid
 import Prelude (Either (..), IO, ($), (.), either, id)
 
 {- |
-The strategy of combining computations that can throw exceptions by bypassing
-bound functions.
+The strategy of combining computations that can throw exceptions.
 
 Is parameterized over the type of error information and the monad type
 constructor.  It is common to use @'Either' 'String'@.  In some cases you will
@@ -77,7 +76,7 @@ have to define an instance of @'MonadThrow'@, though rarely a definition of
 class Monad m => MonadThrow e m | m -> e where
   {- |
   Is used within a monadic computation to begin exception processing.  If
-  @('MonadThrow' e n, 'MonadTrans' t) => t n ~ m@, then @throw = lift '.' throw@
+  @('MonadThrow' e n, 'MonadTrans' t) => t n ~ m@, then @'throw' = 'lift' '.' 'throw'@
   is the default definition.
   -}
   throw :: e -> m a
@@ -86,12 +85,12 @@ class Monad m => MonadThrow e m | m -> e where
 
 {-|
 The strategy of combining computations that can handle thrown exceptions,
-as well as throwing exceptions in the original action.
+as well as throwing exceptions in the original computation.
 
 Is parameterized over the type of error information and the original monad type
-constructor, as well as the handler monad type constructor, which commonly differs
-from the original monad type constructor due to a change in the type of the
-error information.
+constructor, as well as the handler monad type constructor.  The handler monad
+type constructor commonly differs from the original monad type constructor due
+to a change in the type of the error information.
 -}
 class ( MonadThrow e m
       , Monad n
