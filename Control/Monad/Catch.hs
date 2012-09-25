@@ -5,11 +5,36 @@
   , FunctionalDependencies
   , MultiParamTypeClasses
   , UndecidableInstances #-}
--- |
--- License: BSD-style (see the file LICENSE)
--- Maintainer: Andy Sonnenburg <andy22286@gmail.com>
--- Stability: experimental
--- Portability: non-portable
+{- |
+License: BSD-style (see the file LICENSE)
+Maintainer: Andy Sonnenburg <andy22286@gmail.com>
+Stability: experimental
+Portability: non-portable
+
+[Computation type:]
+Computations which may fail or throw exceptions; and computations which may
+catch failures and thrown exceptions.
+
+[Binding strategy:]
+Failure records information about the cause/location of the failure.  Failure
+values bypass the bound function; other values are used as inputs to the bound
+function (same as @'Control.Monad.Error.Class.MonadError'@).
+
+[Useful for:]
+Building computations from sequences of functions that may fail; and using
+exception handling to structure error handling.  The handler may or may not
+throw an exception, which does not have to be of the same type as the original
+thrown exception (see @'mapE'@).
+
+[Zero and plus:]
+Zero is represented by an empty error, and the plus operation executes its second
+argument if the first fails (same as @'Control.Monad.Error.Class.MonadError'@).
+
+[Example type:]
+@'Either' 'String' a@
+
+The Throw and Catch monads.
+-}
 module Control.Monad.Catch
        ( MonadThrow (..)
        , MonadCatch (..)
@@ -38,20 +63,53 @@ import qualified Control.Monad.Trans.Writer.Strict as StrictWriter
 
 import Data.Monoid
 
-import Prelude (Either (..), IO, ($), (.), either)
+import Prelude (Either (..), IO, ($), (.), either, id)
 
+{- |
+The strategy of combining computations that can throw exceptions by bypassing
+bound functions.
+
+Is parameterized over the type of error information and the monad type
+constructor.  It is common to use @'Either' 'String'@.  In some cases you will
+have to define an instance of @'MonadThrow'@, though rarely a definition of
+@'throw'@
+-}
 class Monad m => MonadThrow e m | m -> e where
+  {- |
+  Is used within a monadic computation to begin exception processing.  If
+  @('MonadThrow' e n, 'MonadTrans' t) => t n ~ m@, then @throw = lift '.' throw@
+  is the default definition.
+  -}
   throw :: e -> m a
   default throw :: (MonadThrow e m, MonadTrans t) => e -> t m a
   throw = lift . throw
 
+{-|
+The strategy of combining computations that can handle thrown exceptions,
+as well as throwing exceptions in the original action.
+
+Is parameterized over the type of error information and the original monad type
+constructor, as well as the handler monad type constructor, which commonly differs
+from the original monad type constructor due to a change in the type of the
+error information.
+-}
 class ( MonadThrow e m
       , Monad n
       ) => MonadCatch e m n | m -> e, n e -> m where
+  {- |
+  A handler function to handle thrown values and return to normal execution.
+  A common idiom is:
+
+  > do { action1; action2; action3 } `catch` handler
+
+  where the @action@ functions can call 'throw'.
+  Note that @handler@ and the do-block must have the same return type.
+  -}
   catch :: m a -> (e -> n a) -> n a
 
 type MonadError e m = (MonadThrow e m, MonadCatch e m m)
 
+-- | Map the thrown value using the given function
 mapE :: (MonadCatch e m n, MonadThrow e' n) => (e -> e') -> m a -> n a
 mapE f m = m `catch` (throw . f)
 
@@ -116,17 +174,19 @@ instance MonadCatch e m n =>
     StrictState.runStateT m s `catch` \ e -> StrictState.runStateT (h e) s
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (LazyWriter.WriterT w m)
-instance ( Monoid w
-         , MonadCatch e m n
-         ) => MonadCatch e (LazyWriter.WriterT w m) (LazyWriter.WriterT w n) where
+instance
+  ( Monoid w
+  , MonadCatch e m n
+  ) => MonadCatch e (LazyWriter.WriterT w m) (LazyWriter.WriterT w n) where
   m `catch` h =
     LazyWriter.WriterT $
     LazyWriter.runWriterT m `catch` \ e -> LazyWriter.runWriterT (h e)
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (StrictWriter.WriterT w m)
-instance ( Monoid w
-         , MonadCatch e m n
-         ) => MonadCatch e (StrictWriter.WriterT w m) (StrictWriter.WriterT w n) where
+instance
+  ( Monoid w
+  , MonadCatch e m n
+  ) => MonadCatch e (StrictWriter.WriterT w m) (StrictWriter.WriterT w n) where
   m `catch` h =
     StrictWriter.WriterT $
     StrictWriter.runWriterT m `catch` \ e -> StrictWriter.runWriterT (h e)
