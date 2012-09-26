@@ -1,7 +1,12 @@
+{-# LANGUAGE CPP #-}
+#ifdef LANGUAGE_ConstraintKinds
+{-# LANGUAGE ConstraintKinds #-}
+#endif
+#ifdef LANGUAGE_DefaultSignatures
+{-# LANGUAGE DefaultSignatures #-}
+#endif
 {-# LANGUAGE
-    ConstraintKinds
-  , DefaultSignatures
-  , FlexibleInstances
+    FlexibleInstances
   , FunctionalDependencies
   , MultiParamTypeClasses
   , UndecidableInstances #-}
@@ -81,8 +86,10 @@ class Monad m => MonadThrow e m | m -> e where
   'throw'@ is the default definition.
   -}
   throw :: e -> m a
+#ifdef LANGUAGE_DefaultSignatures
   default throw :: (MonadThrow e m, MonadTrans t) => e -> t m a
   throw = lift . throw
+#endif
 
 {- |
 The strategy of combining computations that can handle thrown exceptions,
@@ -105,7 +112,12 @@ class (MonadThrow e m, Monad n) => MonadCatch e m n | n e -> m where
   -}
   catch :: m a -> (e -> n a) -> n a
 
+#ifdef LANGUAGE_ConstraintKinds
 type MonadError e m = (MonadThrow e m, MonadCatch e m m)
+#else
+class (MonadThrow e m, MonadCatch e m m) => MonadError e m
+instance (MonadThrow e m, MonadCatch e m m) => MonadError e m
+#endif
 
 -- | Map the thrown value using the given function
 mapE :: (MonadCatch e m n, MonadThrow e' n) => (e -> e') -> m a -> n a
@@ -131,47 +143,74 @@ instance ( Error e
   m `catch` h = ErrorT $ runErrorT m >>= either (runErrorT . h) (return . Right)
 
 instance MonadThrow e m => MonadThrow e (IdentityT m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance MonadCatch e m n => MonadCatch e (IdentityT m) (IdentityT n) where
   m `catch` h = IdentityT $ runIdentityT m `catch` (runIdentityT . h)
 
 instance MonadThrow e m => MonadThrow e (ListT m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance MonadCatch e m n => MonadCatch e (ListT m) (ListT n) where
   m `catch` h = ListT $ runListT m `catch` \ e -> runListT (h e)
 
 instance MonadThrow e m => MonadThrow e (MaybeT m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance MonadCatch e m n => MonadCatch e (MaybeT m) (MaybeT n) where
   m `catch` h = MaybeT $ runMaybeT m `catch` (runMaybeT . h)
 
 instance MonadThrow e m => MonadThrow e (ReaderT r m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance MonadCatch e m n => MonadCatch e (ReaderT r m) (ReaderT r n) where
   m `catch` h =
     ReaderT $ \ r -> runReaderT m r `catch` \ e -> runReaderT (h e) r
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (LazyRWS.RWST r w s m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance (Monoid w, MonadCatch e m n) =>
          MonadCatch e (LazyRWS.RWST r w s m) (LazyRWS.RWST r w s n) where
   m `catch` h = LazyRWS.RWST $ \ r s ->
     LazyRWS.runRWST m r s `catch` \ e -> LazyRWS.runRWST (h e) r s
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (StrictRWS.RWST r w s m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance (Monoid w, MonadCatch e m n) =>
          MonadCatch e (StrictRWS.RWST r w s m) (StrictRWS.RWST r w s n) where
   m `catch` h = StrictRWS.RWST $ \ r s ->
     StrictRWS.runRWST m r s `catch` \ e -> StrictRWS.runRWST (h e) r s
 
 instance MonadThrow e m => MonadThrow e (LazyState.StateT s m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance MonadCatch e m n =>
          MonadCatch e (LazyState.StateT s m) (LazyState.StateT s n) where
   m `catch` h = LazyState.StateT $ \ s ->
     LazyState.runStateT m s `catch` \ e -> LazyState.runStateT (h e) s
 
 instance MonadThrow e m => MonadThrow e (StrictState.StateT s m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance MonadCatch e m n =>
          MonadCatch e (StrictState.StateT s m) (StrictState.StateT s n) where
   m `catch` h = StrictState.StateT $ \ s ->
     StrictState.runStateT m s `catch` \ e -> StrictState.runStateT (h e) s
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (LazyWriter.WriterT w m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance
   ( Monoid w
   , MonadCatch e m n
@@ -181,6 +220,9 @@ instance
     LazyWriter.runWriterT m `catch` (LazyWriter.runWriterT . h)
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (StrictWriter.WriterT w m)
+#ifndef LANGUAGE_DefaultSignatures
+  where throw = lift . throw
+#endif
 instance
   ( Monoid w
   , MonadCatch e m n
