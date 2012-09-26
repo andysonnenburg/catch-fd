@@ -27,8 +27,9 @@ throw an exception, which does not have to be of the same type as the original
 thrown exception (see @'mapE'@).
 
 [Zero and plus:]
-Zero is represented by an empty error, and the plus operation executes its second
-argument if the first fails (same as @'Control.Monad.Error.Class.MonadError'@).
+Zero is represented by an empty error, and the plus operation executes its
+second argument if the first fails (same as
+@'Control.Monad.Error.Class.MonadError'@).
 
 [Example type:]
 @'Either' 'String' a@
@@ -63,7 +64,7 @@ import qualified Control.Monad.Trans.Writer.Strict as StrictWriter
 
 import Data.Monoid
 
-import Prelude (Either (..), IO, ($), (.), either, id)
+import Prelude (Either (..), IO, ($), (.), either)
 
 {- |
 The strategy of combining computations that can throw exceptions.
@@ -76,14 +77,14 @@ have to define an instance of @'MonadThrow'@, though rarely a definition of
 class Monad m => MonadThrow e m | m -> e where
   {- |
   Is used within a monadic computation to begin exception processing.  If
-  @('MonadThrow' e n, 'MonadTrans' t) => t n ~ m@, then @'throw' = 'lift' '.' 'throw'@
-  is the default definition.
+  @('MonadThrow' e n, 'MonadTrans' t) => t n ~ m@, then @'throw' = 'lift' '.'
+  'throw'@ is the default definition.
   -}
   throw :: e -> m a
   default throw :: (MonadThrow e m, MonadTrans t) => e -> t m a
   throw = lift . throw
 
-{-|
+{- |
 The strategy of combining computations that can handle thrown exceptions,
 as well as throwing exceptions in the original computation.
 
@@ -92,9 +93,7 @@ constructor, as well as the handler monad type constructor.  The handler monad
 type constructor commonly differs from the original monad type constructor due
 to a change in the type of the error information.
 -}
-class ( MonadThrow e m
-      , Monad n
-      ) => MonadCatch e m n | m -> e, n e -> m where
+class (MonadThrow e m, Monad n) => MonadCatch e m n | n e -> m where
   {- |
   A handler function to handle thrown values and return to normal execution.
   A common idiom is:
@@ -179,7 +178,7 @@ instance
   ) => MonadCatch e (LazyWriter.WriterT w m) (LazyWriter.WriterT w n) where
   m `catch` h =
     LazyWriter.WriterT $
-    LazyWriter.runWriterT m `catch` \ e -> LazyWriter.runWriterT (h e)
+    LazyWriter.runWriterT m `catch` (LazyWriter.runWriterT . h)
 
 instance (Monoid w, MonadThrow e m) => MonadThrow e (StrictWriter.WriterT w m)
 instance
@@ -188,7 +187,7 @@ instance
   ) => MonadCatch e (StrictWriter.WriterT w m) (StrictWriter.WriterT w n) where
   m `catch` h =
     StrictWriter.WriterT $
-    StrictWriter.runWriterT m `catch` \ e -> StrictWriter.runWriterT (h e)
+    StrictWriter.runWriterT m `catch` (StrictWriter.runWriterT . h)
 
 newtype WrappedMonadError m a =
   WrapMonadError { unwrapMonadError :: m a
