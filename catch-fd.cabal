@@ -1,5 +1,5 @@
 name:                catch-fd
-version:             0.1.0.2
+version:             0.2.0.0
 cabal-version:       >= 1.10
 synopsis:            MonadThrow and MonadCatch, using functional dependencies
 description:         MonadThrow and MonadCatch, using functional dependencies
@@ -18,7 +18,9 @@ source-repository head
 
 library
   default-language: Haskell98
-  exposed-modules: Control.Monad.Catch
+  exposed-modules:
+    Control.Monad.Catch
+    Control.Monad.Catch.Class
   build-depends:
     base >= 4 && < 5,
     transformers >= 0.2 && < 0.4,
@@ -29,7 +31,6 @@ library
     other-extensions: ConstraintKinds
   if impl(ghc >= 7.2)
     cpp-options: -DLANGUAGE_DefaultSignatures
-    other-extensions: DefaultSignatures
   other-extensions:
     FlexibleInstances
     FunctionalDependencies
