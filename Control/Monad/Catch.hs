@@ -40,19 +40,25 @@ newtype WrappedMonadError m a =
 
 instance Functor m => Functor (WrappedMonadError m) where
   fmap f = WrapMonadError . fmap f . unwrapMonadError
+#if MIN_VERSION_base(4, 2, 0)
   a <$ m = WrapMonadError $ a <$ unwrapMonadError m
+#endif
 
 instance Applicative m => Applicative (WrappedMonadError m) where
   pure = WrapMonadError . pure
   f <*> a = WrapMonadError $ unwrapMonadError f <*> unwrapMonadError a
+#if MIN_VERSION_base(4, 2, 0)
   a *> b = WrapMonadError $ unwrapMonadError a *> unwrapMonadError b
   a <* b = WrapMonadError $ unwrapMonadError a <* unwrapMonadError b
+#endif
 
 instance Alternative m => Alternative (WrappedMonadError m) where
   empty = WrapMonadError empty
   m <|> n = WrapMonadError $ unwrapMonadError m <|> unwrapMonadError n
+#if MIN_VERSION_base(4, 2, 0)
   some = WrapMonadError . some . unwrapMonadError
   many = WrapMonadError . many . unwrapMonadError
+#endif
 
 instance Monad m => Monad (WrappedMonadError m) where
   return = WrapMonadError . return
@@ -114,19 +120,25 @@ newtype WrappedMonadCatch m a =
 
 instance Functor m => Functor (WrappedMonadCatch m) where
   fmap f = WrapMonadCatch . fmap f . unwrapMonadCatch
+#if MIN_VERSION_base(4, 2, 0)
   a <$ m = WrapMonadCatch $ a <$ unwrapMonadCatch m
+#endif
 
 instance Applicative m => Applicative (WrappedMonadCatch m) where
   pure = WrapMonadCatch . pure
   f <*> a = WrapMonadCatch $ unwrapMonadCatch f <*> unwrapMonadCatch a
+#if MIN_VERSION_base(4, 2, 0)
   a *> b = WrapMonadCatch $ unwrapMonadCatch a *> unwrapMonadCatch b
   a <* b = WrapMonadCatch $ unwrapMonadCatch a <* unwrapMonadCatch b
+#endif
 
 instance Alternative m => Alternative (WrappedMonadCatch m) where
   empty = WrapMonadCatch empty
   m <|> n = WrapMonadCatch $ unwrapMonadCatch m <|> unwrapMonadCatch n
+#if MIN_VERSION_base(4, 2, 0)
   some = WrapMonadCatch . some . unwrapMonadCatch
   many = WrapMonadCatch . many . unwrapMonadCatch
+#endif
 
 instance Monad m => Monad (WrappedMonadCatch m) where
   return = WrapMonadCatch . return
