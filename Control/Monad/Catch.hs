@@ -89,15 +89,21 @@ instance MonadRWS r w s m => MonadRWS r w s (WrappedMonadError m)
 instance MonadReader r m => MonadReader r (WrappedMonadError m) where
   ask = WrapMonadError ask
   local f = WrapMonadError . local f . unwrapMonadError
+#if MIN_VERSION_mtl(2, 1, 0)
   reader = WrapMonadError . reader
+#endif
 
 instance MonadState s m => MonadState s (WrappedMonadError m) where
   get = WrapMonadError get
   put = WrapMonadError . put
+#if MIN_VERSION_mtl(2, 1, 0)
   state = WrapMonadError . state
+#endif
 
 instance MonadWriter w m => MonadWriter w (WrappedMonadError m) where
+#if MIN_VERSION_mtl(2, 1, 0)
   writer = WrapMonadError . writer
+#endif
   tell = WrapMonadError . tell
   listen = WrapMonadError . listen . unwrapMonadError
   pass = WrapMonadError . pass . unwrapMonadError
@@ -155,15 +161,21 @@ instance MonadRWS r w s m => MonadRWS r w s (WrappedMonadCatch m)
 instance MonadReader r m => MonadReader r (WrappedMonadCatch m) where
   ask = WrapMonadCatch ask
   local f = WrapMonadCatch . local f . unwrapMonadCatch
+#if MIN_VERSION_mtl(2, 1, 0)
   reader = WrapMonadCatch . reader
+#endif
 
 instance MonadState s m => MonadState s (WrappedMonadCatch m) where
   get = WrapMonadCatch get
   put = WrapMonadCatch . put
+#if MIN_VERSION_mtl(2, 1, 0)
   state = WrapMonadCatch . state
+#endif
 
 instance MonadWriter w m => MonadWriter w (WrappedMonadCatch m) where
+#if MIN_VERSION_mtl(2, 1, 0)
   writer = WrapMonadCatch . writer
+#endif
   tell = WrapMonadCatch . tell
   listen = WrapMonadCatch . listen . unwrapMonadCatch
   pass = WrapMonadCatch . pass . unwrapMonadCatch
