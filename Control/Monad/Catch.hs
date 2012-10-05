@@ -19,8 +19,10 @@ module Control.Monad.Catch
 import Control.Applicative
 import Control.Monad as Exports
 import Control.Monad.Catch.Class
+import Control.Monad.Cont.Class
 import qualified Control.Monad.Error.Class as Error
 import Control.Monad.Fix as Exports
+import Control.Monad.RWS.Class
 import Control.Monad.Trans as Exports
 
 import Prelude (($), (.))
@@ -72,6 +74,34 @@ instance Error.MonadError e m =>
     WrapMonadError $
     unwrapMonadError m `Error.catchError` (unwrapMonadError . h)
 
+instance MonadCont m => MonadCont (WrappedMonadError m) where
+  callCC f =
+    WrapMonadError $ callCC $ \ c -> unwrapMonadError (f (WrapMonadError . c))
+
+instance Error.MonadError e m => Error.MonadError e (WrappedMonadError m) where
+  throwError = WrapMonadError . Error.throwError
+  m `catchError` h =
+    WrapMonadError $
+    unwrapMonadError m `Error.catchError` (unwrapMonadError . h)
+
+instance MonadRWS r w s m => MonadRWS r w s (WrappedMonadError m)
+
+instance MonadReader r m => MonadReader r (WrappedMonadError m) where
+  ask = WrapMonadError ask
+  local f = WrapMonadError . local f . unwrapMonadError
+  reader = WrapMonadError . reader
+
+instance MonadState s m => MonadState s (WrappedMonadError m) where
+  get = WrapMonadError get
+  put = WrapMonadError . put
+  state = WrapMonadError . state
+
+instance MonadWriter w m => MonadWriter w (WrappedMonadError m) where
+  writer = WrapMonadError . writer
+  tell = WrapMonadError . tell
+  listen = WrapMonadError . listen . unwrapMonadError
+  pass = WrapMonadError . pass . unwrapMonadError
+
 newtype WrappedMonadCatch m a =
   WrapMonadCatch { unwrapMonadCatch :: m a
                  }
@@ -104,7 +134,36 @@ instance MonadTrans WrappedMonadCatch where
 instance MonadIO m => MonadIO (WrappedMonadCatch m) where
   liftIO = WrapMonadCatch . liftIO
 
+instance MonadThrow e m => MonadThrow e (WrappedMonadCatch m) where
+  throw = WrapMonadCatch . throw
+instance MonadCatch e m n =>
+         MonadCatch e (WrappedMonadCatch m) (WrappedMonadCatch n) where
+  m `catch` h =
+    WrapMonadCatch $ unwrapMonadCatch m `catch` (unwrapMonadCatch . h)
+
+instance MonadCont m => MonadCont (WrappedMonadCatch m) where
+  callCC f =
+    WrapMonadCatch $ callCC $ \ c -> unwrapMonadCatch (f (WrapMonadCatch . c))
+
 instance MonadCatch e m m => Error.MonadError e (WrappedMonadCatch m) where
   throwError = WrapMonadCatch . throw
   m `catchError` h =
     WrapMonadCatch $ unwrapMonadCatch m `catch` (unwrapMonadCatch . h)
+
+instance MonadRWS r w s m => MonadRWS r w s (WrappedMonadCatch m)
+
+instance MonadReader r m => MonadReader r (WrappedMonadCatch m) where
+  ask = WrapMonadCatch ask
+  local f = WrapMonadCatch . local f . unwrapMonadCatch
+  reader = WrapMonadCatch . reader
+
+instance MonadState s m => MonadState s (WrappedMonadCatch m) where
+  get = WrapMonadCatch get
+  put = WrapMonadCatch . put
+  state = WrapMonadCatch . state
+
+instance MonadWriter w m => MonadWriter w (WrappedMonadCatch m) where
+  writer = WrapMonadCatch . writer
+  tell = WrapMonadCatch . tell
+  listen = WrapMonadCatch . listen . unwrapMonadCatch
+  pass = WrapMonadCatch . pass . unwrapMonadCatch
