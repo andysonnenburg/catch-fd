@@ -53,12 +53,12 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.List
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Reader
-import qualified Control.Monad.Trans.RWS.Lazy as LazyRWS
-import qualified Control.Monad.Trans.RWS.Strict as StrictRWS
-import qualified Control.Monad.Trans.State.Lazy as LazyState
-import qualified Control.Monad.Trans.State.Strict as StrictState
-import qualified Control.Monad.Trans.Writer.Lazy as LazyWriter
-import qualified Control.Monad.Trans.Writer.Strict as StrictWriter
+import qualified Control.Monad.Trans.RWS.Lazy as Lazy (RWST (..))
+import qualified Control.Monad.Trans.RWS.Strict as Strict (RWST (..))
+import qualified Control.Monad.Trans.State.Lazy as Lazy (StateT (..))
+import qualified Control.Monad.Trans.State.Strict as Strict (StateT (..))
+import qualified Control.Monad.Trans.Writer.Lazy as Lazy (WriterT (..))
+import qualified Control.Monad.Trans.Writer.Strict as Strict (WriterT (..))
 
 import Data.Monoid (Monoid)
 
@@ -129,83 +129,98 @@ instance ( Error e
   m `catch` h = ErrorT $ runErrorT m >>= either (runErrorT . h) (return . Right)
 
 #ifdef LANGUAGE_DefaultSignatures
-#define MonadThrow_defaults
+#define MONAD_THROW(T)\
+instance MonadThrow e m => MonadThrow e (T m)
 #else
-#define MonadThrow_defaults\
+#define MONAD_THROW(T)\
+instance MonadThrow e m => MonadThrow e (T m) where\
   throw = lift . throw
 #endif
+MONAD_THROW(IdentityT)
+MONAD_THROW(ListT)
+MONAD_THROW(MaybeT)
+MONAD_THROW(ReaderT r)
+#undef MONAD_THROW
 
-instance MonadThrow e m => MonadThrow e (IdentityT m) where
-  MonadThrow_defaults
+#ifdef LANGUAGE_DefaultSignatures
+#define MONAD_THROW(C, T)\
+instance (C, MonadThrow e m) => MonadThrow e (T m)
+#else
+#define MONAD_THROW(C, T)\
+instance (C, MonadThrow e m) => MonadThrow e (T m) where\
+  throw = lift . throw
+#endif
+MONAD_THROW(Monoid w, Lazy.RWST r w s)
+MONAD_THROW(Monoid w, Strict.RWST r w s)
+#undef MONAD_THROW
+
+#ifdef LANGUAGE_DefaultSignatures
+#define MONAD_THROW(T)\
+instance MonadThrow e m => MonadThrow e (T m)
+#else
+#define MONAD_THROW(T)\
+instance MonadThrow e m => MonadThrow e (T m) where\
+  throw = lift . throw
+#endif
+MONAD_THROW(Lazy.StateT s)
+MONAD_THROW(Strict.StateT s)
+#undef MONAD_THROW
+
+#ifdef LANGUAGE_DefaultSignatures
+#define MONAD_THROW(C, T)\
+instance (C, MonadThrow e m) => MonadThrow e (T m)
+#else
+#define MONAD_THROW(C, T)\
+instance (C, MonadThrow e m) => MonadThrow e (T m) where\
+  throw = lift . throw
+#endif
+MONAD_THROW(Monoid w, Lazy.WriterT w)
+MONAD_THROW(Monoid w, Strict.WriterT w)
+#undef MONAD_THROW
+
 instance MonadCatch e m n => MonadCatch e (IdentityT m) (IdentityT n) where
   m `catch` h = IdentityT $ runIdentityT m `catch` (runIdentityT . h)
 
-instance MonadThrow e m => MonadThrow e (ListT m) where
-  MonadThrow_defaults
 instance MonadCatch e m n => MonadCatch e (ListT m) (ListT n) where
   m `catch` h = ListT $ runListT m `catch` \ e -> runListT (h e)
 
-instance MonadThrow e m => MonadThrow e (MaybeT m) where
-  MonadThrow_defaults
 instance MonadCatch e m n => MonadCatch e (MaybeT m) (MaybeT n) where
   m `catch` h = MaybeT $ runMaybeT m `catch` (runMaybeT . h)
 
-instance MonadThrow e m => MonadThrow e (ReaderT r m) where
-  MonadThrow_defaults
 instance MonadCatch e m n => MonadCatch e (ReaderT r m) (ReaderT r n) where
   m `catch` h =
     ReaderT $ \ r -> runReaderT m r `catch` \ e -> runReaderT (h e) r
 
-instance (Monoid w, MonadThrow e m) => MonadThrow e (LazyRWS.RWST r w s m) where
-  MonadThrow_defaults
 instance (Monoid w, MonadCatch e m n) =>
-         MonadCatch e (LazyRWS.RWST r w s m) (LazyRWS.RWST r w s n) where
-  m `catch` h = LazyRWS.RWST $ \ r s ->
-    LazyRWS.runRWST m r s `catch` \ e -> LazyRWS.runRWST (h e) r s
+         MonadCatch e (Lazy.RWST r w s m) (Lazy.RWST r w s n) where
+  m `catch` h = Lazy.RWST $ \ r s ->
+    Lazy.runRWST m r s `catch` \ e -> Lazy.runRWST (h e) r s
 
-instance ( Monoid w
-         , MonadThrow e m
-         ) => MonadThrow e (StrictRWS.RWST r w s m) where
-  MonadThrow_defaults
 instance (Monoid w, MonadCatch e m n) =>
-         MonadCatch e (StrictRWS.RWST r w s m) (StrictRWS.RWST r w s n) where
-  m `catch` h = StrictRWS.RWST $ \ r s ->
-    StrictRWS.runRWST m r s `catch` \ e -> StrictRWS.runRWST (h e) r s
+         MonadCatch e (Strict.RWST r w s m) (Strict.RWST r w s n) where
+  m `catch` h = Strict.RWST $ \ r s ->
+    Strict.runRWST m r s `catch` \ e -> Strict.runRWST (h e) r s
 
-instance MonadThrow e m => MonadThrow e (LazyState.StateT s m) where
-  MonadThrow_defaults
 instance MonadCatch e m n =>
-         MonadCatch e (LazyState.StateT s m) (LazyState.StateT s n) where
-  m `catch` h = LazyState.StateT $ \ s ->
-    LazyState.runStateT m s `catch` \ e -> LazyState.runStateT (h e) s
+         MonadCatch e (Lazy.StateT s m) (Lazy.StateT s n) where
+  m `catch` h = Lazy.StateT $ \ s ->
+    Lazy.runStateT m s `catch` \ e -> Lazy.runStateT (h e) s
 
-instance MonadThrow e m => MonadThrow e (StrictState.StateT s m) where
-  MonadThrow_defaults
 instance MonadCatch e m n =>
-         MonadCatch e (StrictState.StateT s m) (StrictState.StateT s n) where
-  m `catch` h = StrictState.StateT $ \ s ->
-    StrictState.runStateT m s `catch` \ e -> StrictState.runStateT (h e) s
+         MonadCatch e (Strict.StateT s m) (Strict.StateT s n) where
+  m `catch` h = Strict.StateT $ \ s ->
+    Strict.runStateT m s `catch` \ e -> Strict.runStateT (h e) s
 
 instance ( Monoid w
-         , MonadThrow e m
-         ) => MonadThrow e (LazyWriter.WriterT w m) where
-  MonadThrow_defaults
-instance
-  ( Monoid w
-  , MonadCatch e m n
-  ) => MonadCatch e (LazyWriter.WriterT w m) (LazyWriter.WriterT w n) where
+         , MonadCatch e m n
+         ) => MonadCatch e (Lazy.WriterT w m) (Lazy.WriterT w n) where
   m `catch` h =
-    LazyWriter.WriterT $
-    LazyWriter.runWriterT m `catch` (LazyWriter.runWriterT . h)
+    Lazy.WriterT $
+    Lazy.runWriterT m `catch` (Lazy.runWriterT . h)
 
 instance ( Monoid w
-         , MonadThrow e m
-         ) => MonadThrow e (StrictWriter.WriterT w m) where
-  MonadThrow_defaults
-instance
-  ( Monoid w
-  , MonadCatch e m n
-  ) => MonadCatch e (StrictWriter.WriterT w m) (StrictWriter.WriterT w n) where
+         , MonadCatch e m n
+         ) => MonadCatch e (Strict.WriterT w m) (Strict.WriterT w n) where
   m `catch` h =
-    StrictWriter.WriterT $
-    StrictWriter.runWriterT m `catch` (StrictWriter.runWriterT . h)
+    Strict.WriterT $
+    Strict.runWriterT m `catch` (Strict.runWriterT . h)
