@@ -35,6 +35,7 @@ instance (MonadThrow e m, MonadCatch e m m) => MonadError e m
 newtype WrappedMonadError m a =
   WrapMonadError { unwrapMonadError :: m a
                  }
+
 instance Functor m => Functor (WrappedMonadError m) where
   fmap f = WrapMonadError . fmap f . unwrapMonadError
   a <$ m = WrapMonadError $ a <$ unwrapMonadError m
@@ -45,11 +46,23 @@ instance Applicative m => Applicative (WrappedMonadError m) where
   a *> b = WrapMonadError $ unwrapMonadError a *> unwrapMonadError b
   a <* b = WrapMonadError $ unwrapMonadError a <* unwrapMonadError b
 
+instance Alternative m => Alternative (WrappedMonadError m) where
+  empty = WrapMonadError empty
+  m <|> n = WrapMonadError $ unwrapMonadError m <|> unwrapMonadError n
+  some = WrapMonadError . some . unwrapMonadError
+  many = WrapMonadError . many . unwrapMonadError
+
 instance Monad m => Monad (WrappedMonadError m) where
   return = WrapMonadError . return
   m >>= f = WrapMonadError $ unwrapMonadError m >>= unwrapMonadError . f
   m >> n = WrapMonadError $ unwrapMonadError m >> unwrapMonadError n
   fail = WrapMonadError . fail
+
+instance MonadTrans WrappedMonadError where
+  lift = WrapMonadError
+
+instance MonadIO m => MonadIO (WrappedMonadError m) where
+  liftIO = WrapMonadError . liftIO
 
 instance Error.MonadError e m => MonadThrow e (WrappedMonadError m) where
   throw = WrapMonadError . Error.throwError
@@ -73,11 +86,23 @@ instance Applicative m => Applicative (WrappedMonadCatch m) where
   a *> b = WrapMonadCatch $ unwrapMonadCatch a *> unwrapMonadCatch b
   a <* b = WrapMonadCatch $ unwrapMonadCatch a <* unwrapMonadCatch b
 
+instance Alternative m => Alternative (WrappedMonadCatch m) where
+  empty = WrapMonadCatch empty
+  m <|> n = WrapMonadCatch $ unwrapMonadCatch m <|> unwrapMonadCatch n
+  some = WrapMonadCatch . some . unwrapMonadCatch
+  many = WrapMonadCatch . many . unwrapMonadCatch
+
 instance Monad m => Monad (WrappedMonadCatch m) where
   return = WrapMonadCatch . return
   m >>= f = WrapMonadCatch $ unwrapMonadCatch m >>= unwrapMonadCatch . f
   m >> n = WrapMonadCatch $ unwrapMonadCatch m >> unwrapMonadCatch n
   fail = WrapMonadCatch . fail
+
+instance MonadTrans WrappedMonadCatch where
+  lift = WrapMonadCatch
+
+instance MonadIO m => MonadIO (WrappedMonadCatch m) where
+  liftIO = WrapMonadCatch . liftIO
 
 instance MonadCatch e m m => Error.MonadError e (WrappedMonadCatch m) where
   throwError = WrapMonadCatch . throw
