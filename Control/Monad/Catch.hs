@@ -6,6 +6,37 @@
     FlexibleInstances
   , MultiParamTypeClasses
   , UndecidableInstances #-}
+{- |
+License: BSD-style (see the file LICENSE)
+Maintainer: Andy Sonnenburg <andy22286@gmail.com>
+Stability: experimental
+Portability: non-portable
+
+[Computation type:]
+Computations which may fail or throw exceptions; and computations which may
+catch failures and thrown exceptions.
+
+[Binding strategy:]
+Failure records information about the cause/location of the failure.  Failure
+values bypass the bound function; other values are used as inputs to the bound
+function (same as @'Control.Monad.Error.Class.MonadError'@).
+
+[Useful for:]
+Building computations from sequences of functions that may fail; and using
+exception handling to structure error handling.  The handler may or may not
+throw an exception, which does not have to be of the same type as the original
+thrown exception (see @'mapE'@).
+
+[Zero and plus:]
+Zero is represented by an empty error, and the plus operation executes its
+second argument if the first fails (same as
+@'Control.Monad.Error.Class.MonadError'@).
+
+[Example type:]
+@'Either' 'String' a@
+
+The Throw and Catch monads.
+-}
 module Control.Monad.Catch
        ( module Exports
        , MonadThrow (..)

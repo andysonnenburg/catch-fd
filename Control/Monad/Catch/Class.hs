@@ -129,54 +129,30 @@ instance ( Error e
   m `catch` h = ErrorT $ runErrorT m >>= either (runErrorT . h) (return . Right)
 
 #ifdef LANGUAGE_DefaultSignatures
-#define MONAD_THROW(T)\
+#define MONAD_THROW_1(T)\
 instance MonadThrow e m => MonadThrow e (T m)
-#else
-#define MONAD_THROW(T)\
-instance MonadThrow e m => MonadThrow e (T m) where\
-  throw = lift . throw
-#endif
-MONAD_THROW(IdentityT)
-MONAD_THROW(ListT)
-MONAD_THROW(MaybeT)
-MONAD_THROW(ReaderT r)
-#undef MONAD_THROW
-
-#ifdef LANGUAGE_DefaultSignatures
-#define MONAD_THROW(C, T)\
+#define MONAD_THROW_2(C, T)\
 instance (C, MonadThrow e m) => MonadThrow e (T m)
 #else
-#define MONAD_THROW(C, T)\
+#define MONAD_THROW_1(T)\
+instance MonadThrow e m => MonadThrow e (T m) where\
+  throw = lift . throw
+#define MONAD_THROW_2(C, T)\
 instance (C, MonadThrow e m) => MonadThrow e (T m) where\
   throw = lift . throw
 #endif
-MONAD_THROW(Monoid w, Lazy.RWST r w s)
-MONAD_THROW(Monoid w, Strict.RWST r w s)
-#undef MONAD_THROW
-
-#ifdef LANGUAGE_DefaultSignatures
-#define MONAD_THROW(T)\
-instance MonadThrow e m => MonadThrow e (T m)
-#else
-#define MONAD_THROW(T)\
-instance MonadThrow e m => MonadThrow e (T m) where\
-  throw = lift . throw
-#endif
-MONAD_THROW(Lazy.StateT s)
-MONAD_THROW(Strict.StateT s)
-#undef MONAD_THROW
-
-#ifdef LANGUAGE_DefaultSignatures
-#define MONAD_THROW(C, T)\
-instance (C, MonadThrow e m) => MonadThrow e (T m)
-#else
-#define MONAD_THROW(C, T)\
-instance (C, MonadThrow e m) => MonadThrow e (T m) where\
-  throw = lift . throw
-#endif
-MONAD_THROW(Monoid w, Lazy.WriterT w)
-MONAD_THROW(Monoid w, Strict.WriterT w)
-#undef MONAD_THROW
+MONAD_THROW_1(IdentityT)
+MONAD_THROW_1(ListT)
+MONAD_THROW_1(MaybeT)
+MONAD_THROW_1(ReaderT r)
+MONAD_THROW_2(Monoid w, Lazy.RWST r w s)
+MONAD_THROW_2(Monoid w, Strict.RWST r w s)
+MONAD_THROW_1(Lazy.StateT s)
+MONAD_THROW_1(Strict.StateT s)
+MONAD_THROW_2(Monoid w, Lazy.WriterT w)
+MONAD_THROW_2(Monoid w, Strict.WriterT w)
+#undef MONAD_THROW_1
+#undef MONAD_THROW_2
 
 instance MonadCatch e m n => MonadCatch e (IdentityT m) (IdentityT n) where
   m `catch` h = IdentityT $ runIdentityT m `catch` (runIdentityT . h)
